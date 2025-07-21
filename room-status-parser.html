@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Status Parser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .back-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 10px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        
+        .back-btn:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .property-info {
+            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .property-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .property-subtitle {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        h1 {
+            color: #333;
+            margin: 0;
+            font-size: 2.2em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.2);
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .submit-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+            font-size: 1.1em;
+        }
+        
+        .result.success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .result.error {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .result.loading {
+            background: linear-gradient(135deg, #e2e3e5, #d6d8db);
+            border: 1px solid #d6d8db;
+            color: #383d41;
+            text-align: center;
+        }
+        
+        .examples {
+            margin-top: 25px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 8px;
+        }
+        
+        .examples h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .example-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .example-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .example-input {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .example-output {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .quick-examples {
+            margin-top: 15px;
+        }
+        
+        .quick-example {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 6px 12px;
+            margin: 3px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.3s;
+        }
+        
+        .quick-example:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="back-btn" onclick="goBack()">← Back to Property Selection</button>
+        
+        <div class="property-info">
+            <div class="property-name" id="propertyName">Property Name</div>
+            <div class="property-subtitle">Room Status Management</div>
+        </div>
+        
+        <div class="header">
+            <h1>🏨 Room Status Parser</h1>
+        </div>
+        
+        <form id="statusForm">
+            <div class="form-group">
+                <label for="message">Enter Room Status Message:</label>
+                <input 
+                    type="text" 
+                    id="message" 
+                    name="message" 
+                    placeholder="e.g., 203 VC, Room 105 dirty, 301 OOO"
+                    required
+                >
+            </div>
+            <button type="submit" class="submit-btn" id="submitBtn">Parse Status</button>
+        </form>
+        
+        <div id="result" class="result"></div>
+        
+        <div class="examples">
+            <h3>📝 Example Messages:</h3>
+            <div class="example-grid">
+                <div class="example-item">
+                    <div class="example-input">203 VC</div>
+                    <div class="example-output">→ Room 203, Vacant & Clean</div>
+                </div>
+                <div class="example-item">
+                    <div class="example-input">Room 105 dirty</div>
+                    <div class="example-output">→ Room 105, Vacant & Dirty</div>
+                </div>
+                <div class="example-item">
+                    <div class="example-input">301 OOO</div>
+                    <div class="example-output">→ Room 301, Out of Order</div>
+                </div>
+                <div class="example-item">
+                    <div class="example-input">205 occupied</div>
+                    <div class="example-output">→ Room 205, Occupied</div>
+                </div>
+            </div>
+            
+            <div class="quick-examples">
+                <strong>Quick Examples:</strong><br>
+                <span class="quick-example" onclick="setExample('203 VC')">203 VC</span>
+                <span class="quick-example" onclick="setExample('Room 105 dirty')">Room 105 dirty</span>
+                <span class="quick-example" onclick="setExample('301 OOO')">301 OOO</span>
+                <span class="quick-example" onclick="setExample('205 occupied')">205 occupied</span>
+                <span class="quick-example" onclick="setExample('410 ready')">410 ready</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Replace this with your actual Google Apps Script Web App URL
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycb1234567890abcdef/exec';
+        
+        // Load property info on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPropertyInfo();
+        });
+        
+        function loadPropertyInfo() {
+            const propertyName = localStorage.getItem('selectedPropertyName');
+            const propertyId = localStorage.getItem('selectedProperty');
+            
+            if (!propertyName || !propertyId) {
+                // Redirect back to property selection if no property selected
+                window.location.href = 'property-selector.html';
+                return;
+            }
+            
+            document.getElementById('propertyName').textContent = propertyName;
+        }
+        
+        function goBack() {
+            window.location.href = 'property-selector.html';
+        }
+        
+        function setExample(text) {
+            document.getElementById('message').value = text;
+            document.getElementById('message').focus();
+        }
+        
+        document.getElementById('statusForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const message = document.getElementById('message').value.trim();
+            const submitBtn = document.getElementById('submitBtn');
+            const resultDiv = document.getElementById('result');
+            const propertyId = localStorage.getItem('selectedProperty');
+            
+            if (!message) {
+                showResult('Please enter a message', 'error');
+                return;
+            }
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            showResult('🔄 Parsing room status...', 'loading');
+            
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        message: message,
+                        property_id: propertyId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult(`✅ ${data.parsed_result}`, 'success');
+                } else {
+                    showResult(`❌ Error: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showResult(`❌ Connection error: ${error.message}`, 'error');
+            } finally {
+                // Reset button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Parse Status';
+            }
+        });
+        
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = `result ${type}`;
+            resultDiv.style.display = 'block';
+        }
+        
+        // Clear result when user starts typing
+        document.getElementById('message').addEventListener('input', function() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
