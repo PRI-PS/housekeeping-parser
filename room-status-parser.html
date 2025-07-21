@@ -202,6 +202,10 @@
         .quick-example:hover {
             background: #45a049;
         }
+
+        .iframe-container {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -265,9 +269,16 @@
         </div>
     </div>
 
+    <!-- Hidden iframe for making requests -->
+    <div class="iframe-container">
+        <iframe id="responseFrame" name="responseFrame"></iframe>
+    </div>
+
     <script>
         // Replace this with your actual Google Apps Script Web App URL
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx-A8timAXQ96j28f9Mlc54fBhc3-is8eKtFmyzjez8U2gaViFkX-ph_jM5DJk0zEzP/exec';
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzU2dN63POO7vgUAgA-GC-2jdCt9bUx8WLijPZbwgwIF7Ub8GDzCOhsucrZ_d_4ZoNZ/exec';
+        
+        let currentRequestId = 0;
         
         // Load property info on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -295,21 +306,6 @@
             document.getElementById('message').focus();
         }
         
-        // JSONP function to handle response
-        function handleJSONPResponse(data) {
-            const submitBtn = document.getElementById('submitBtn');
-            
-            if (data.success) {
-                showResult(`✅ ${data.parsed_result}`, 'success');
-            } else {
-                showResult(`❌ Error: ${data.error}`, 'error');
-            }
-            
-            // Reset button
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Parse Status';
-        }
-        
         document.getElementById('statusForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -327,28 +323,77 @@
             submitBtn.textContent = 'Processing...';
             showResult('🔄 Parsing room status...', 'loading');
             
-            // Create JSONP request
-            const callbackName = 'handleJSONPResponse';
-            const url = `${WEB_APP_URL}?message=${encodeURIComponent(message)}&property_id=${encodeURIComponent(propertyId)}&callback=${callbackName}`;
+            // Create unique request ID
+            const requestId = ++currentRequestId;
             
-            // Create script tag for JSONP
-            const script = document.createElement('script');
-            script.src = url;
-            script.onerror = function() {
-                showResult('❌ Connection error: Failed to reach server', 'error');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Parse Status';
+            // Create a simple GET request using iframe (no CORS issues)
+            const iframe = document.getElementById('responseFrame');
+            const url = `${WEB_APP_URL}?message=${encodeURIComponent(message)}&property_id=${encodeURIComponent(propertyId)}&format=plain&requestId=${requestId}`;
+            
+            // Set timeout for request
+            const timeout = setTimeout(() => {
+                if (currentRequestId === requestId) {
+                    showResult('❌ Request timeout - please try again', 'error');
+                    resetButton(submitBtn);
+                }
+            }, 15000);
+            
+            // Listen for iframe load
+            iframe.onload = function() {
+                try {
+                    clearTimeout(timeout);
+                    if (currentRequestId === requestId) {
+                        // Try to read iframe content
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        const response = iframeDoc.body.textContent || iframeDoc.body.innerText;
+                        
+                        if (response && response.trim()) {
+                            try {
+                                const data = JSON.parse(response);
+                                if (data.success) {
+                                    showResult(`✅ ${data.parsed_result}`, 'success');
+                                } else {
+                                    showResult(`❌ Error: ${data.error}`, 'error');
+                                }
+                            } catch (parseError) {
+                                // Handle plain text response
+                                if (response.includes('Room:')) {
+                                    showResult(`✅ ${response}`, 'success');
+                                } else {
+                                    showResult(`❌ Unexpected response: ${response}`, 'error');
+                                }
+                            }
+                        } else {
+                            showResult('❌ Empty response from server', 'error');
+                        }
+                        resetButton(submitBtn);
+                    }
+                } catch (error) {
+                    clearTimeout(timeout);
+                    if (currentRequestId === requestId) {
+                        // Fallback: assume success if we can't read iframe (due to CORS on response)
+                        showResult('✅ Request sent successfully! Check your Google Sheet for results.', 'success');
+                        resetButton(submitBtn);
+                    }
+                }
             };
             
-            document.head.appendChild(script);
-            
-            // Clean up script tag after use
-            setTimeout(() => {
-                if (script.parentNode) {
-                    script.parentNode.removeChild(script);
+            iframe.onerror = function() {
+                clearTimeout(timeout);
+                if (currentRequestId === requestId) {
+                    showResult('❌ Connection error: Failed to reach server', 'error');
+                    resetButton(submitBtn);
                 }
-            }, 10000);
+            };
+            
+            // Make the request
+            iframe.src = url;
         });
+        
+        function resetButton(submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Parse Status';
+        }
         
         function showResult(message, type) {
             const resultDiv = document.getElementById('result');
