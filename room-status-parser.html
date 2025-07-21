@@ -267,10 +267,7 @@
 
     <script>
         // Replace this with your actual Google Apps Script Web App URL
-        // const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycb1234567890abcdef/exec';
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx7YkJjR3KTmMm7CiiSQR3QglVjUL_PDTGYqYlRkTummYEnp1XpT4iYOBSdVpnJzaCq/exec';
-
-
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx-A8timAXQ96j28f9Mlc54fBhc3-is8eKtFmyzjez8U2gaViFkX-ph_jM5DJk0zEzP/exec';
         
         // Load property info on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -282,7 +279,6 @@
             const propertyId = localStorage.getItem('selectedProperty');
             
             if (!propertyName || !propertyId) {
-                // Redirect back to property selection if no property selected
                 window.location.href = 'property-selector.html';
                 return;
             }
@@ -299,12 +295,26 @@
             document.getElementById('message').focus();
         }
         
-        document.getElementById('statusForm').addEventListener('submit', async function(e) {
+        // JSONP function to handle response
+        function handleJSONPResponse(data) {
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (data.success) {
+                showResult(`✅ ${data.parsed_result}`, 'success');
+            } else {
+                showResult(`❌ Error: ${data.error}`, 'error');
+            }
+            
+            // Reset button
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Parse Status';
+        }
+        
+        document.getElementById('statusForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const message = document.getElementById('message').value.trim();
             const submitBtn = document.getElementById('submitBtn');
-            const resultDiv = document.getElementById('result');
             const propertyId = localStorage.getItem('selectedProperty');
             
             if (!message) {
@@ -317,38 +327,27 @@
             submitBtn.textContent = 'Processing...';
             showResult('🔄 Parsing room status...', 'loading');
             
-            try {
-                const response = await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        message: message,
-                        property_id: propertyId
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showResult(`✅ ${data.parsed_result}`, 'success');
-                } else {
-                    showResult(`❌ Error: ${data.error}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error:', error);
-                showResult(`❌ Connection error: ${error.message}`, 'error');
-            } finally {
-                // Reset button
+            // Create JSONP request
+            const callbackName = 'handleJSONPResponse';
+            const url = `${WEB_APP_URL}?message=${encodeURIComponent(message)}&property_id=${encodeURIComponent(propertyId)}&callback=${callbackName}`;
+            
+            // Create script tag for JSONP
+            const script = document.createElement('script');
+            script.src = url;
+            script.onerror = function() {
+                showResult('❌ Connection error: Failed to reach server', 'error');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Parse Status';
-            }
+            };
+            
+            document.head.appendChild(script);
+            
+            // Clean up script tag after use
+            setTimeout(() => {
+                if (script.parentNode) {
+                    script.parentNode.removeChild(script);
+                }
+            }, 10000);
         });
         
         function showResult(message, type) {
